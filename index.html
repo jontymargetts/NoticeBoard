@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1080, height=1920">
+<!-- Reload every 30 min so the screen picks up fixture changes -->
+<meta http-equiv="refresh" content="1800">
+<title>Upcoming Fixtures</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#1d1b1c; --card:#2c292a; --accent:#f5ea33; --text:#fff; --muted:#b9b4ad; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { width:1080px; height:1920px; overflow:hidden; position:relative; background:var(--bg); color:var(--text); font-family:Inter, Arial, sans-serif; }
+  header { padding:80px 70px 50px; display:flex; align-items:center; gap:44px; border-bottom:8px solid var(--accent); margin-bottom:20px; }
+  header img { width:260px; height:260px; }
+  header small { font:600 30px Inter; letter-spacing:6px; color:var(--accent); text-transform:uppercase; }
+  header h1 { font:700 120px/1 Oswald, sans-serif; text-transform:uppercase; margin-top:12px; }
+  main { padding:0 70px; display:flex; flex-direction:column; gap:22px; }
+  .date { font:700 40px Oswald, sans-serif; color:var(--accent); text-transform:uppercase; margin-top:22px; }
+  .fx { background:var(--card); border-left:10px solid var(--accent); border-radius:14px; padding:26px 32px; }
+  .teams { display:grid; grid-template-columns:1fr auto 1fr; gap:24px; align-items:center; font:600 40px/1.15 Inter; }
+  .teams .v { font:700 32px Oswald; color:var(--muted); }
+  .teams .away { text-align:right; }
+  .teams .capel { color:var(--accent); }
+  .meta { display:flex; justify-content:space-between; margin-top:14px; font-size:26px; color:var(--muted); text-transform:uppercase; }
+  .empty { font-size:44px; color:var(--muted); margin-top:60px; }
+  footer { position:absolute; bottom:50px; left:70px; right:70px; font-size:24px; color:var(--muted); display:flex; justify-content:space-between; }
+  #src { display:none; }
+</style>
+</head>
+<body>
+<header>
+  <img src="logo.webp" alt="Capel FC crest">
+  <div><small>Capel Football Club</small><h1>Upcoming<br>Fixtures</h1></div>
+</header>
+<main id="list"><div class="empty">Loading fixtures…</div></main>
+<footer><span>Source: FA Full-Time</span><span id="updated"></span></footer>
+
+<!-- FA Full-Time widget renders here (hidden); we restyle its data -->
+<div id="src"><div id="lrep249318005"></div></div>
+<script>var lrcode = '249318005';</script>
+<script src="https://fulltime.thefa.com/client/api/cs1.js"></script>
+<script>
+  const MAX = 8; // fixtures that fit on a 1920px-tall screen
+  const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const txt = td => td.textContent.replace(/\s+/g, ' ').trim();
+  const team = (name, cls) => `<span class="${cls}${/^capel\b/i.test(name) ? ' capel' : ''}">${esc(name)}</span>`;
+
+  function render() {
+    const rows = document.querySelectorAll('#lrep249318005 tr');
+    if (!rows.length) return false;
+    let html = '', date = '', shown = 0;
+    for (const tr of rows) {
+      const tds = tr.querySelectorAll('td');
+      if (tds.length === 1) { date = txt(tds[0]); continue; }
+      if (tds.length < 4 || shown >= MAX) continue; // MAX is a cap; overflow is trimmed below
+      if (date) { html += `<div class="date">${esc(date)}</div>`; date = ''; }
+      html += `<div class="fx">
+        <div class="teams">${team(txt(tds[1]), '')}<span class="v">VS</span>${team(txt(tds[3]), 'away')}</div>
+        <div class="meta"><span>${esc(txt(tds[0]))}</span><span>${esc(tds[4] ? txt(tds[4]) : '')}</span></div>
+      </div>`;
+      shown++;
+    }
+    const list = document.getElementById('list');
+    list.innerHTML = html || '<div class="empty">No upcoming fixtures</div>';
+    // Drop fixtures that would run into the footer, plus any orphaned date heading
+    const limit = document.querySelector('footer').getBoundingClientRect().top - 20;
+    while (list.children.length > 1 && list.lastElementChild.getBoundingClientRect().bottom > limit) list.lastElementChild.remove();
+    while (list.lastElementChild?.classList.contains('date')) list.lastElementChild.remove();
+    document.getElementById('updated').textContent = 'Updated ' + new Date().toLocaleString('en-GB', {dateStyle:'medium', timeStyle:'short'});
+    return true;
+  }
+
+  // Widget loads async; poll until it has rendered (give up after 30s)
+  let tries = 0;
+  const t = setInterval(() => {
+    if (render() || ++tries > 60) {
+      clearInterval(t);
+      if (tries > 60) document.getElementById('list').innerHTML = '<div class="empty">Fixtures unavailable</div>';
+    }
+  }, 500);
+</script>
+</body>
+</html>
